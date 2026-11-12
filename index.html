@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CR Schedule Fit Modeling</title>
+<style>
+:root{--ink:#1a1a1a;--muted:#5f6368;--line:#d9dce0;--bg:#fff;--panel:#f6f7f9;--purple:#7f0a66;--teal:#1bb8d3;--high:#7f0a66;--med:#d98b1f;--low:#8a9199}
+@media (prefers-color-scheme:dark){:root{--ink:#eceef0;--muted:#a4abb3;--line:#3a3f45;--bg:#15171a;--panel:#1e2125;--purple:#c25aa9;--teal:#4cc9de;--high:#c25aa9;--med:#e5a64a;--low:#7e868f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--muted);margin:2px 0 18px}
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:16px}
+.settings label{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap:3px}
+.settings input,.settings select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;width:100%}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:16px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--muted)}
+.stat small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:900px}
+th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--panel);white-space:normal;vertical-align:bottom;line-height:1.25}
+td.n,th.n{text-align:right}
+tr:last-child td{border-bottom:0}
+.bar{display:inline-block;height:8px;border-radius:4px;vertical-align:middle;margin-right:8px}
+.tier{font-weight:600}
+.High{color:var(--high)}.Medium{color:var(--med)}.Low{color:var(--low)}
+.bar.High{background:var(--high)}.bar.Medium{background:var(--med)}.bar.Low{background:var(--low)}
+.err{color:#c0392b;font-size:13px;margin:-8px 0 12px;display:none}
+.note{color:var(--muted);font-size:13px;margin:14px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>CR Schedule Fit Modeling</h1>
+<p class="sub">Model v8 &middot; AM Schedule - 9-24-26 &middot; PM Schedule - 9-28-26</p>
+
+<div class="settings">
+  <label>ShiftStart<input id="ShiftStart" type="time" value="07:00"></label>
+  <label>ShiftEnd<input id="ShiftEnd" type="time" value="19:00"></label>
+  <label>AM Minimum<input id="AM_Min" type="number" min="0" step="1" value="15"></label>
+  <label>AM Maximum<input id="AM_Max" type="number" min="0" step="1" value="45"></label>
+  <label>PM Minimum<input id="PM_Min" type="number" min="0" step="1" value="15"></label>
+  <label>PM Maximum<input id="PM_Max" type="number" min="0" step="1" value="45"></label>
+  <label>WrapUp<input id="WrapUp" type="number" min="0" step="1" value="30"></label>
+  <label>TAM Type<select id="TAM_Type"><option>Access</option><option>Within 30 minutes</option></select></label>
+</div>
+<div class="err" id="err">Each Minimum must not be larger than its Maximum.</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="wrap"><table>
+<thead><tr>
+<th class="n">Opportunity Ranking</th><th>Key Station</th><th>CR Line</th><th class="n">Total Addressable Market (TAM)</th>
+<th>Usable trains</th><th>Pair Status</th><th>Opportunity Score</th><th>Opportunity Tier</th>
+</tr></thead>
+<tbody id="rows"></tbody>
+</table></div>
+<p class="note">AM = minutes before ShiftStart on arrival at the hospital. PM = minutes between reaching the platform and the train leaving. 1.00 is the line with the biggest gap in this model, not necessarily an absolute standard.</p>
+</main>
+<script>
+const PAIRS = [{"station":"JFK","line":"Fall River/New Bedford","hospitals":"LMA","tamAccess":3070.666667,"tam30":2258.666667,"amTransit":35,"pmTransit":45,"am":[383],"pm":[1182]},{"station":"JFK","line":"Greenbush","hospitals":"LMA","tamAccess":1738.666667,"tam30":1309.666667,"amTransit":35,"pmTransit":45,"am":[364],"pm":[1154]},{"station":"JFK","line":"Kingston","hospitals":"LMA","tamAccess":2454.666667,"tam30":1701.666667,"amTransit":35,"pmTransit":45,"am":[350,404],"pm":[1202]},{"station":"Lansdowne","line":"Framingham/Worcester","hospitals":"LMA","tamAccess":4788,"tam30":3648,"amTransit":20,"pmTransit":20,"am":[334,381,418],"pm":[1191,1271,1331]},{"station":"Boston Landing","line":"Framingham/Worcester","hospitals":"BMC-B","tamAccess":487,"tam30":406,"amTransit":12,"pmTransit":12,"am":[330,376,413],"pm":[1197,1277,1337]},{"station":"Ruggles","line":"Franklin/Foxboro","hospitals":"LMA/BMC","tamAccess":2907,"tam30":1510,"amTransit":10,"pmTransit":20,"am":[358,410,418],"pm":[1218,1218,1338]},{"station":"Ruggles","line":"Needham","hospitals":"LMA/BMC","tamAccess":3043,"tam30":3043,"amTransit":10,"pmTransit":20,"am":[337,400],"pm":[1203,1288]},{"station":"Ruggles","line":"Providence/Stoughton","hospitals":"LMA/BMC","tamAccess":4439,"tam30":2976,"amTransit":10,"pmTransit":20,"am":[318,344,374,410],"pm":[1166,1208,1243,1268]},{"station":"Back Bay","line":"Franklin/Foxboro","hospitals":"TMC","tamAccess":159.375,"tam30":90.375,"amTransit":6,"pmTransit":6,"am":[362,414],"pm":[1163,1215,1335]},{"station":"Back Bay","line":"Needham","hospitals":"TMC","tamAccess":129.875,"tam30":129.875,"amTransit":6,"pmTransit":6,"am":[341,404],"pm":[1200,1285]},{"station":"Back Bay","line":"Providence/Stoughton","hospitals":"TMC","tamAccess":254.875,"tam30":171.375,"amTransit":6,"pmTransit":6,"am":[322,348,378,414],"pm":[1163,1205,1240,1265]},{"station":"Back Bay","line":"Framingham/Worcester","hospitals":"TMC","tamAccess":263.875,"tam30":172.875,"amTransit":6,"pmTransit":6,"am":[342,389],"pm":[1186,1266,1326]},{"station":"South Station","line":"Greenbush","hospitals":"MGH/TMC","tamAccess":1741.5,"tam30":1339.5,"amTransit":10,"pmTransit":10,"am":[373],"pm":[1147,1280,1430]},{"station":"South Station","line":"Kingston","hospitals":"MGH/TMC","tamAccess":2232.5,"tam30":1629.5,"amTransit":10,"pmTransit":10,"am":[359,414],"pm":[1195,1300]},{"station":"South Station","line":"Fall River/New Bedford","hospitals":"MGH/TMC","tamAccess":2469.5,"tam30":1981.5,"amTransit":10,"pmTransit":10,"am":[349,394],"pm":[1175,1268,1355]},{"station":"South Station","line":"Fairmount","hospitals":"MGH/TMC","tamAccess":1382.5,"tam30":1382.5,"amTransit":10,"pmTransit":10,"am":[315,360,390],"pm":[1157,1187,1217,1247]},{"station":"South Station","line":"Providence/Stoughton","hospitals":"MGH/TMC","tamAccess":1933.541667,"tam30":1258.041667,"amTransit":10,"pmTransit":10,"am":[328,354,384],"pm":[1158,1200,1235,1260]},{"station":"South Station","line":"Franklin/Foxboro","hospitals":"MGH/TMC","tamAccess":1204.041667,"tam30":726.041667,"amTransit":10,"pmTransit":10,"am":[368],"pm":[1157,1210,1297,1330]},{"station":"South Station","line":"Needham","hospitals":"MGH/TMC","tamAccess":1193.541667,"tam30":1193.541667,"amTransit":10,"pmTransit":10,"am":[347,410],"pm":[1195,1280]},{"station":"South Station","line":"Framingham/Worcester","hospitals":"MGH/TMC","tamAccess":2480.875,"tam30":1839.875,"amTransit":10,"pmTransit":10,"am":[348,395],"pm":[1180,1260,1320]},{"station":"North Station","line":"Fitchburg","hospitals":"MGH/CNY","tamAccess":3390,"tam30":2509,"amTransit":10,"pmTransit":10,"am":[361],"pm":[1170,1260,1350]},{"station":"North Station","line":"Lowell","hospitals":"MGH/CNY","tamAccess":2761,"tam30":2154,"amTransit":10,"pmTransit":10,"am":[346,391],"pm":[1185,1245,1305]},{"station":"North Station","line":"Haverhill","hospitals":"MGH/CNY","tamAccess":4250,"tam30":3022,"amTransit":10,"pmTransit":10,"am":[354,401],"pm":[1170,1300,1420]},{"station":"North Station","line":"Newburyport/Rockport","hospitals":"MGH/CNY","tamAccess":3359,"tam30":1824,"amTransit":10,"pmTransit":10,"am":[356,384],"pm":[1155,1205,1250,1310]}];
+const OPP_HIGH = 0.5, OPP_MED = 0.25;
+const $ = id => document.getElementById(id);
+const toMin = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+const fmt = n => Math.round(n).toLocaleString('en-US');
+
+function score(v, min, max){ return v <= 0 ? 0 : v < min ? 0 : v <= max ? 2 : 1; }
+
+function run(){
+  const shiftStart = toMin($('ShiftStart').value), shiftEnd = toMin($('ShiftEnd').value);
+  const amMin = +$('AM_Min').value, amMax = +$('AM_Max').value, pmMin = +$('PM_Min').value, pmMax = +$('PM_Max').value;
+  const wrap = +$('WrapUp').value, within30 = $('TAM_Type').value === 'Within 30 minutes';
+  $('err').style.display = (amMin > amMax || pmMin > pmMax) ? 'block' : 'none';
+
+  const rows = PAIRS.map((p, i) => {
+    const amScores = p.am.map(t => score(Math.max(0, shiftStart - (t + p.amTransit)), amMin, amMax));
+    const pmScores = p.pm.map(t => score(Math.max(0, t - (shiftEnd + p.pmTransit + wrap)), pmMin, pmMax));
+    const amUse = amScores.filter(s => s === 2).length, pmUse = pmScores.filter(s => s === 2).length;
+    const scored = amScores.length + pmScores.length;
+    const ratio = scored ? (amUse + pmUse) / scored : null;
+    const tam = within30 ? p.tam30 : p.tamAccess;
+    const gap = ratio === null ? 0 : tam * (1 - ratio);
+    const amOk = amUse > 0, pmOk = pmUse > 0;
+    const status = amOk && pmOk ? 'Usable AM and PM' : amOk ? 'AM usable, PM gap' : pmOk ? 'PM usable, AM gap' : 'Gap in AM and PM';
+    return {p, tam, amScores, pmScores, amUse, pmUse, gap, key: gap + (i + 2) / 100000, status};
+  });
+  const max = Math.max(...rows.map(r => r.gap));
+  rows.forEach(r => {
+    r.opp = max > 0 ? r.gap / max : 0;
+    r.tier = r.opp >= OPP_HIGH ? 'High' : r.opp >= OPP_MED ? 'Medium' : 'Low';
+  });
+  rows.sort((a, b) => b.key - a.key);
+
+  $('rows').innerHTML = rows.map((r, i) => `<tr>
+    <td class="n">${i + 1}</td><td>${r.p.station}</td><td>${r.p.line}</td><td class="n">${fmt(r.tam)}</td>
+    <td>AM ${r.amUse} of ${r.amScores.length}, PM ${r.pmUse} of ${r.pmScores.length}</td><td>${r.status}</td>
+    <td><span class="bar ${r.tier}" style="width:${Math.round(r.opp * 60)}px"></span>${r.opp.toFixed(2)}</td>
+    <td class="tier ${r.tier}">${r.tier} opportunity</td></tr>`).join('');
+
+  const sum = f => rows.reduce((a, r) => a + f(r), 0);
+  const amScored = sum(r => r.amScores.length), pmScored = sum(r => r.pmScores.length);
+  const amUsable = sum(r => r.amUse), pmUsable = sum(r => r.pmUse);
+  const amNone = rows.filter(r => r.amUse === 0).length, pmNone = rows.filter(r => r.pmUse === 0).length;
+  const tamTotal = sum(r => r.tam);
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '';
+  $('stats').innerHTML = [
+    ['Usable trains', `AM ${amUsable} of ${amScored}`, `PM ${pmUsable} of ${pmScored}`],
+    ['Share of usable trains', `AM ${pct(amUsable, amScored)}`, `PM ${pct(pmUsable, pmScored)}`],
+    ['Lines with no usable train', `AM ${amNone} of 24`, `PM ${pmNone} of 24`],
+    ['TAM', fmt(tamTotal), $('TAM_Type').value]
+  ].map(([k, a, b]) => `<div class="stat"><span>${k}</span><b>${a}</b><small>${b}</small></div>`).join('');
+}
+document.querySelectorAll('.settings input,.settings select').forEach(el => el.addEventListener('input', run));
+run();
+</script>
+</body>
+</html>
