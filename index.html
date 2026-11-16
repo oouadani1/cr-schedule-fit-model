@@ -16,12 +16,25 @@ h1{font-size:22px;margin:0}
 .settings input,.settings select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;width:100%}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:16px}
 .stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-.stat b{display:block;font-size:20px}
+.stat b{display:block;font-size:20px;line-height:1.3}
 .stat span{font-size:12px;color:var(--muted)}
 .stat small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+tr.pair{cursor:pointer}
+tr.pair:hover td{background:var(--panel)}
+tr.pair td:first-child::before{content:"\25B8";display:inline-block;width:14px;color:var(--muted);font-size:11px}
+tr.pair.open td:first-child::before{content:"\25BE"}
+tr.detail td{background:var(--panel);white-space:normal;padding:10px 14px 12px 34px}
+.dh{font-size:12px;font-weight:600;color:var(--muted);margin:8px 0 3px}
+.dh:first-child{margin-top:0}
+.tl{font-size:13px;padding:2px 0;line-height:1.5}
+.tl i{font-style:normal;color:var(--muted);margin:0 2px}
+.tl .sep{color:var(--muted);margin:0 6px}
+.res{display:inline-block;font-weight:600;font-size:12px;border-radius:4px;padding:0 6px;margin-left:6px}
+.res.r2{background:var(--teal)}.res.r1{background:var(--med)}.res.r0{background:var(--line)}
 .wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
 table{border-collapse:collapse;width:100%;min-width:900px}
-th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+table{font-size:14px}
+th,td{padding:7px 7px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
 th{font-size:12px;color:var(--muted);font-weight:600;background:var(--panel);white-space:normal;vertical-align:bottom;line-height:1.25}
 td.n,th.n{text-align:right}
 tr:last-child td{border-bottom:0}
@@ -71,8 +84,29 @@ const toMin = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m;
 const fmt = n => Math.round(n).toLocaleString('en-US');
 const usd = n => '$' + fmt(n);
 const ZONE_1A_PASS = 90;
+const MODE = {JFK: 'Longwood Collective shuttle', Lansdowne: 'Longwood Collective shuttle', Ruggles: 'Longwood Collective / BMC shuttle'};
+const modeOf = s => MODE[s] || 'Google Maps travel time';
+const clock = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; const h = Math.floor(m / 60); return ((h % 12) || 12) + ':' + String(m % 60).padStart(2, '0') + (h < 12 ? ' AM' : ' PM'); };
+const open = new Set();
 
 function score(v, min, max){ return v <= 0 ? 0 : v < min ? 0 : v <= max ? 2 : 1; }
+
+function detail(r, c) {
+  const p = r.p, mode = modeOf(p.station), h = p.hospitals, res = ['Missed', 'Too early', 'Usable'];
+  const am = p.am.map((t, i) => {
+    const arr = t + p.amTransit, before = c.shiftStart - arr, s = r.amScores[i];
+    const gap = before > 0 ? `${before} min before ${clock(c.shiftStart)} shift start` : before === 0 ? `at ${clock(c.shiftStart)} shift start` : `${-before} min after ${clock(c.shiftStart)} shift start`;
+    return `<div class="tl"><b>${clock(t)}</b> arrives ${p.station} <i>+</i> ${p.amTransit} min ${mode} to ${h} <i>=</i> <b>${clock(arr)}</b> at ${h}<span class="sep">|</span>${gap}<span class="res r${s}">${res[s]}</span></div>`;
+  }).join('') || '<div class="tl">No trains</div>';
+  const earliest = c.shiftEnd + c.wrap + p.pmTransit;
+  const pm = p.pm.map((t, i) => {
+    const cush = t - earliest, s = r.pmScores[i];
+    const gap = cush > 0 ? `${cush} min wait on platform` : cush === 0 ? 'leaves as worker arrives' : `leaves ${-cush} min before worker arrives`;
+    const label = s === 1 ? 'Too long a wait' : res[s];
+    return `<div class="tl"><b>${clock(t)}</b> leaves ${p.station}<span class="sep">|</span>${clock(c.shiftEnd)} shift end <i>+</i> ${c.wrap} min wrap-up <i>+</i> ${p.pmTransit} min ${mode} from ${h} <i>=</i> <b>${clock(earliest)}</b> at ${p.station}<span class="sep">|</span>${gap}<span class="res r${s}">${label}</span></div>`;
+  }).join('') || '<div class="tl">No trains</div>';
+  return `<tr class="detail"><td colspan="9"><div class="dh">AM trains (buffer ${c.amMin} to ${c.amMax} min)</div>${am}<div class="dh">PM trains (platform wait ${c.pmMin} to ${c.pmMax} min)</div>${pm}</td></tr>`;
+}
 
 function run(){
   const shiftStart = toMin($('ShiftStart').value), shiftEnd = toMin($('ShiftEnd').value);
@@ -102,11 +136,15 @@ function run(){
   });
   rows.sort((a, b) => b.key - a.key);
 
-  $('rows').innerHTML = rows.map((r, i) => `<tr>
+  const ctx = {shiftStart, shiftEnd, amMin, amMax, pmMin, pmMax, wrap};
+  $('rows').innerHTML = rows.map((r, i) => {
+    const k = r.p.station + '|' + r.p.line, isOpen = open.has(k);
+    return `<tr class="pair${isOpen ? ' open' : ''}" data-k="${k}" tabindex="0">
     <td class="n">${i + 1}</td><td>${r.p.station}</td><td>${r.p.line}</td><td class="n">${fmt(r.tam)}</td>
     <td>AM ${r.amUse} of ${r.amScores.length}, PM ${r.pmUse} of ${r.pmScores.length}</td><td>${r.status}</td>
-    <td><span class="bar ${r.tier}" style="width:${Math.round(r.opp * 60)}px"></span>${r.opp.toFixed(2)}</td>
-    <td class="tier ${r.tier}">${r.tier} opportunity</td><td class="n">${usd(r.atStake)}</td></tr>`).join('');
+    <td><span class="bar ${r.tier}" style="width:${Math.round(r.opp * 40)}px"></span>${r.opp.toFixed(2)}</td>
+    <td class="tier ${r.tier}">${r.tier} opportunity</td><td class="n">${usd(r.atStake)}</td></tr>` + (isOpen ? detail(r, ctx) : '');
+  }).join('');
 
   const sum = f => rows.reduce((a, r) => a + f(r), 0);
   const amScored = sum(r => r.amScores.length), pmScored = sum(r => r.pmScores.length);
@@ -121,9 +159,12 @@ function run(){
     ['TAM', fmt(tamTotal), $('TAM_Type').value],
     ['Monthly pass revenue potential', usd(sum(r => r.rev)), $('TAM_Type').value],
     ['Revenue on lines with no usable train', `AM ${usd(rows.filter(r => r.amUse === 0).reduce((a, r) => a + r.rev, 0))}`, `PM ${usd(rows.filter(r => r.pmUse === 0).reduce((a, r) => a + r.rev, 0))}`]
-  ].map(([k, a, b]) => `<div class="stat"><span>${k}</span><b>${a}</b><small>${b}</small></div>`).join('');
+  ].map(([k, a, b]) => `<div class="stat"><span>${k}</span><b>${a}</b>${/^PM /.test(b) ? `<b>${b}</b>` : `<small>${b}</small>`}</div>`).join('');
 }
 document.querySelectorAll('.settings input,.settings select').forEach(el => el.addEventListener('input', run));
+const toggle = tr => { if (!tr || !tr.dataset.k) return; const k = tr.dataset.k; open.has(k) ? open.delete(k) : open.add(k); run(); };
+$('rows').addEventListener('click', e => toggle(e.target.closest('tr.pair')));
+$('rows').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e.target.closest('tr.pair')); } });
 run();
 </script>
 </body>
