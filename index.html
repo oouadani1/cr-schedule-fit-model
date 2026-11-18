@@ -125,7 +125,7 @@ const DEFS = [
   ['AM Minimum and Maximum', 'Minutes before ShiftStart that the worker reaches the hospital. The minimum is the buffer needed. The maximum is the earliest still worth taking.'],
   ['PM Minimum and Maximum', 'Minutes the worker waits on the platform, from the earliest they could be there to the train leaving. The minimum is the shortest wait that feels safe. The maximum is the longest wait accepted.'],
   ['WrapUp', 'Minutes after ShiftEnd before a worker can leave the unit and start toward the station.'],
-  ['Counting window', 'A train is counted only if it is no more than ' + WINDOW + ' minutes earlier (AM) or later (PM) than the ideal time. Trains outside that are left out. Missed trains still count.'],
+  ['Usability window', 'A train is counted only if the worker would reach the hospital no more than ' + WINDOW / 60 + ' hours before shift start (AM), or if it leaves the platform no more than ' + WINDOW / 60 + ' hours after the earliest the worker could be there (PM). Trains outside the window are left out, so very early and very late trains do not lower the usable share. Missed trains inside the window still count.'],
   ['Monthly revenue at stake', 'Monthly pass revenue at the take-up rate shown, times the share of the line\'s trains that are not usable. It is a ceiling, not a forecast.']
 ];
 
