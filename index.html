@@ -11,6 +11,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-ap
 main{max-width:1200px;margin:0 auto;padding:24px 16px 48px}
 h1{font-size:22px;margin:0}
 .sub{color:var(--muted);margin:2px 0 18px}
+.hd{position:relative}
+.ttl{display:flex;align-items:center;gap:8px}
+.info{width:20px;height:20px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--muted);font:italic 600 12px/1 Georgia,"Times New Roman",serif;cursor:pointer}
+.info:hover,.info[aria-expanded="true"]{color:var(--purple);border-color:var(--purple)}
+.defs{position:absolute;z-index:20;top:34px;left:0;width:min(640px,100%);max-height:70vh;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.12);padding:12px 16px 4px}
+.defs[hidden]{display:none}
+.defs dt{font-weight:600;font-size:13px}
+.defs dd{margin:1px 0 10px;font-size:13px;color:var(--muted)}
 .settings{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:16px}
 .settings label:last-child{grid-column:span 2}
 @media (max-width:900px){.settings{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}.settings label:last-child{grid-column:auto}}
@@ -46,6 +54,8 @@ td.n,th.n{text-align:right}
 tr:last-child td{border-bottom:0}
 .bar{display:inline-block;height:8px;border-radius:4px;vertical-align:middle;margin-right:8px}
 .tier{font-weight:600}
+.lmh{font-size:16px;margin:26px 0 8px}
+#lm td{white-space:normal;vertical-align:top}
 .High{color:var(--high)}.Medium{color:var(--med)}.Low{color:var(--low)}
 .bar.High{background:var(--high)}.bar.Medium{background:var(--med)}.bar.Low{background:var(--low)}
 .err{color:#c0392b;font-size:13px;margin:-8px 0 12px;display:none}
@@ -54,8 +64,11 @@ tr:last-child td{border-bottom:0}
 </head>
 <body>
 <main>
-<h1>CR Schedule Fit Modeling</h1>
-<p class="sub">Model v8 &middot; AM Schedule - 9-24-26 &middot; PM Schedule - 9-28-26</p>
+<div class="hd">
+<div class="ttl"><h1>CR Schedule Fit Modeling</h1><button class="info" id="info" type="button" aria-label="Key terms" aria-expanded="false" aria-controls="defs">i</button></div>
+<dl class="defs" id="defs" hidden></dl>
+</div>
+<p class="sub">Model v9 &middot; CR schedules: MBTA GTFS Fall 2026 version D (valid Nov 6, 2026 to Dec 12, 2026), service date Tue Nov 17, 2026<br>Last mile: r5r routing on MBTA GTFS and OpenStreetMap (Massachusetts extract from Geofabrik, pulled Nov 18, 2026); hospital addresses geocoded with the US Census Geocoder</p>
 
 <div class="settings">
   <label>ShiftStart<input id="ShiftStart" type="time" value="07:00"></label>
@@ -67,7 +80,7 @@ tr:last-child td{border-bottom:0}
   <label>WrapUp<input id="WrapUp" type="number" min="0" step="1" value="30"></label>
   <label>Include Zone 1A tier<select id="Include_1A"><option>No</option><option>Yes</option></select></label>
   <label>Pass take-up rate (%)<input id="TakeUp" type="number" min="0" max="100" step="1" value="5"></label>
-  <label>TAM Type<select id="TAM_Type"><option>Access</option><option selected>Within 30 minutes</option></select></label>
+  <label>TAM Type<select id="TAM_Type"><option>Total</option><option selected>Within 30 minutes</option></select></label>
 </div>
 <div class="err" id="err">Each Minimum must not be larger than its Maximum.</div>
 
@@ -81,9 +94,13 @@ tr:last-child td{border-bottom:0}
 <tbody id="rows"></tbody>
 </table></div>
 <p class="note">AM = minutes before ShiftStart on arrival at the hospital. PM = minutes between reaching the platform and the train leaving. 1.00 is the line with the biggest gap in this model, not necessarily an absolute standard. Revenue is a ceiling at the take-up rate shown, not a forecast. Zone 1A employees pay a flat $90 a month and are left out of revenue unless Include Zone 1A tier is Yes.</p>
+<h2 class="lmh" id="lmh">Last mile at the non-shuttle stations</h2>
+<div class="wrap" id="lm"></div>
+<p class="note" id="lmnote">Example trips leave at 6:30 AM and 8:00 PM. The median is across departures in the hour. The model uses one number per station, averaged across its hospitals. JFK, Lansdowne and Ruggles use shuttle times.</p>
 </main>
 <script>
 const PAIRS = [{"station":"JFK","line":"Fall River/New Bedford","hospitals":"LMA","tamAccess":3070.666667,"tam30":2258.666667,"amTransit":35,"pmTransit":45,"am":[383,442,480,534,589],"pm":[867,945,1007,1032,1067,1125,1182],"revAccess":794017,"rev30":500085,"z1aAccess":362.666667,"z1a30":362.666667},{"station":"JFK","line":"Greenbush","hospitals":"LMA","tamAccess":1738.666667,"tam30":1309.666667,"amTransit":35,"pmTransit":45,"am":[364,421,468,514,573],"pm":[924,987,1040,1086,1154],"revAccess":381009,"rev30":243300,"z1aAccess":362.666667,"z1a30":362.666667},{"station":"JFK","line":"Kingston","hospitals":"LMA","tamAccess":2454.666667,"tam30":1701.666667,"amTransit":35,"pmTransit":45,"am":[350,404,460,496,553],"pm":[882,967,1024,1057,1107,1202],"revAccess":609189,"rev30":342368,"z1aAccess":362.666667,"z1a30":362.666667},{"station":"Lansdowne","line":"Framingham/Worcester","hospitals":"LMA","tamAccess":4788,"tam30":3648,"amTransit":20,"pmTransit":20,"am":[334,381,418,439,462,488,501,512,539,575,630,685,740,805,865,920,983,1014,1038,1058,1083,1145,1183,1193,1275,1335,1446],"pm":[295,335,373,383,421,441,461,488,546,601,661,716,786,836,891,936,971,981,1016,1026,1061,1076,1106,1131,1191,1271,1331,1436],"revAccess":913841,"rev30":524080,"z1aAccess":2468,"z1a30":2468},{"station":"Boston Landing","line":"Framingham/Worcester","hospitals":"BMC-B","tamAccess":487,"tam30":406,"amTransit":18,"pmTransit":21,"am":[330,376,413,434,457,483,496,534,570,625,680,735,800,860,915,978,1009,1033,1053,1078,1140,1178,1188,1270,1330,1441],"pm":[300,340,378,388,446,466,495,551,606,666,721,791,841,896,941,977,987,1022,1032,1067,1082,1112,1137,1197,1277,1337,1442],"revAccess":76556,"rev30":49159,"z1aAccess":329,"z1a30":329},{"station":"Ruggles","line":"Franklin/Foxboro","hospitals":"LMA/BMC","tamAccess":2907,"tam30":1510,"amTransit":10,"pmTransit":20,"am":[360,418,455,487,507,553,571,620,689,736,796,856,896,971,1078,1115,1174,1256],"pm":[469,532,581,651,697,757,817,877,929,974,993,1034,1061,1077,1124,1219,1339],"revAccess":645738,"rev30":244814,"z1aAccess":743,"z1a30":743},{"station":"Ruggles","line":"Needham","hospitals":"LMA/BMC","tamAccess":3043,"tam30":3043,"amTransit":10,"pmTransit":20,"am":[338,403,463,523,583,640,700,760,820,880,945,1005,1070,1125,1185,1285],"pm":[418,478,538,598,658,718,778,843,903,964,1024,1084,1143,1203,1288],"revAccess":572012,"rev30":572012,"z1aAccess":743,"z1a30":743},{"station":"Ruggles","line":"Providence/Stoughton","hospitals":"LMA/BMC","tamAccess":4439,"tam30":2976,"amTransit":10,"pmTransit":20,"am":[317,342,375,413,432,454,470,503,512,526,558,578,621,648,682,713,744,812,823,864,888,916,938,962,997,1027,1052,1091,1112,1151,1188,1220,1235,1275,1350,1400,1475],"pm":[268,333,403,438,458,488,513,553,573,610,643,688,733,748,793,808,853,868,903,928,956,963,983,1021,1028,1066,1080,1110,1153,1166,1208,1243,1268,1308,1373,1443],"revAccess":1093481,"rev30":578980,"z1aAccess":743,"z1a30":743},{"station":"Back Bay","line":"Franklin/Foxboro","hospitals":"TMC","tamAccess":159.375,"tam30":90.375,"amTransit":7,"pmTransit":7,"am":[364,422,459,492,512,558,575,623,692,739,799,859,899,974,1081,1118,1177,1259],"pm":[465,528,577,647,693,753,813,873,925,971,989,1031,1058,1074,1121,1215,1335],"revAccess":32090.75,"rev30":12251.75,"z1aAccess":61.375,"z1a30":61.375},{"station":"Back Bay","line":"Needham","hospitals":"TMC","tamAccess":129.875,"tam30":129.875,"amTransit":7,"pmTransit":7,"am":[341,406,466,526,586,643,703,763,823,883,948,1008,1073,1128,1188,1288],"pm":[415,475,535,595,655,715,775,840,900,960,1020,1080,1140,1200,1285],"revAccess":20533.75,"rev30":20533.75,"z1aAccess":61.375,"z1a30":61.375},{"station":"Back Bay","line":"Providence/Stoughton","hospitals":"TMC","tamAccess":254.875,"tam30":171.375,"amTransit":7,"pmTransit":7,"am":[321,346,379,417,436,458,474,507,516,530,562,582,625,652,686,717,748,816,827,868,892,920,942,966,1001,1031,1056,1095,1116,1155,1192,1224,1239,1279,1354,1404,1479],"pm":[265,330,400,435,455,485,510,550,570,607,640,685,730,745,790,805,850,865,900,925,952,960,980,1017,1025,1062,1077,1107,1150,1163,1205,1240,1265,1305,1370,1440],"revAccess":59623.75,"rev30":30593.25,"z1aAccess":61.375,"z1a30":61.375},{"station":"Back Bay","line":"Framingham/Worcester","hospitals":"TMC","tamAccess":263.875,"tam30":172.875,"amTransit":7,"pmTransit":7,"am":[343,391,426,448,471,498,510,522,546,585,642,697,752,817,877,932,991,1023,1047,1067,1091,1155,1189,1200,1281,1341,1452],"pm":[290,330,368,378,416,436,456,483,541,596,656,711,781,831,886,931,967,977,1012,1022,1057,1072,1102,1127,1186,1266,1326,1431],"revAccess":56316.75,"rev30":25441.25,"z1aAccess":114.875,"z1a30":114.875},{"station":"South Station","line":"Greenbush","hospitals":"MGH/TMC","tamAccess":1741.5,"tam30":1339.5,"amTransit":13,"pmTransit":15,"am":[373,430,477,523,583,705,781,850,965,1126,1220,1408],"pm":[425,537,630,705,825,917,980,1033,1079,1147,1280,1430],"revAccess":372544.33,"rev30":244588.33,"z1aAccess":409.166667,"z1a30":409.166667},{"station":"South Station","line":"Kingston","hospitals":"MGH/TMC","tamAccess":2232.5,"tam30":1629.5,"amTransit":13,"pmTransit":15,"am":[359,414,470,506,563,674,750,830,920,1007,1171,1240],"pm":[517,603,678,757,875,960,1017,1050,1100,1195,1300],"revAccess":527901.33,"rev30":319188.33,"z1aAccess":409.166667,"z1a30":409.166667},{"station":"South Station","line":"Fall River/New Bedford","hospitals":"MGH/TMC","tamAccess":2469.5,"tam30":1981.5,"amTransit":13,"pmTransit":15,"am":[349,394,452,491,545,600,658,733,810,884,944,1026,1105,1199,1275,1400],"pm":[405,498,575,650,725,785,860,938,1000,1025,1060,1118,1175,1268,1355,1439],"revAccess":596500.33,"rev30":420120.33,"z1aAccess":409.166667,"z1a30":409.166667},{"station":"South Station","line":"Fairmount","hospitals":"MGH/TMC","tamAccess":1382.5,"tam30":1382.5,"amTransit":13,"pmTransit":15,"am":[315,360,392,452,482,512,542,570,600,630,660,690,750,780,810,840,870,900,930,960,990,1020,1050,1080,1110,1140,1170,1265],"pm":[377,407,437,467,497,527,557,587,617,677,707,737,767,797,827,857,887,917,947,977,1007,1037,1067,1097,1127,1187,1217,1247,1337],"revAccess":124425,"rev30":124425,"z1aAccess":1382.5,"z1a30":1382.5},{"station":"South Station","line":"Providence/Stoughton","hospitals":"MGH/TMC","tamAccess":1933.541667,"tam30":1258.041667,"amTransit":13,"pmTransit":15,"am":[329,354,384,420,439,461,477,509,520,532,562,583,626,653,687,718,749,817,828,869,893,921,943,969,1004,1034,1059,1098,1119,1161,1196,1228,1243,1283,1358,1408,1483],"pm":[260,325,395,430,450,480,505,545,565,602,635,680,725,740,785,800,845,860,895,920,947,955,975,1012,1020,1057,1072,1102,1145,1158,1200,1235,1260,1300,1365,1385,1435],"revAccess":460305.75,"rev30":220331.25,"z1aAccess":487.041667,"z1a30":487.041667},{"station":"South Station","line":"Franklin/Foxboro","hospitals":"MGH/TMC","tamAccess":1204.041667,"tam30":726.041667,"amTransit":13,"pmTransit":15,"am":[369,422,427,463,495,516,564,580,628,697,744,804,864,904,979,1085,1122,1181,1222,1264,1320,1360,1430],"pm":[347,460,523,572,642,688,748,808,868,920,965,982,1025,1052,1068,1115,1157,1210,1297,1330,1435],"revAccess":237056.75,"rev30":99281.75,"z1aAccess":487.041667,"z1a30":487.041667},{"station":"South Station","line":"Needham","hospitals":"MGH/TMC","tamAccess":1193.541667,"tam30":1193.541667,"amTransit":13,"pmTransit":15,"am":[345,410,470,530,590,647,707,767,827,892,952,1012,1077,1132,1192,1292],"pm":[410,470,530,590,650,710,770,835,895,955,1015,1075,1135,1195,1280],"revAccess":199767.75,"rev30":199767.75,"z1aAccess":487.041667,"z1a30":487.041667},{"station":"South Station","line":"Framingham/Worcester","hospitals":"MGH/TMC","tamAccess":2480.875,"tam30":1839.875,"amTransit":13,"pmTransit":15,"am":[348,395,431,452,474,503,514,525,551,590,646,701,756,821,881,936,995,1027,1051,1071,1095,1161,1195,1206,1287,1347,1458],"pm":[285,325,362,373,410,430,450,477,535,590,650,705,775,825,880,925,960,970,1005,1015,1050,1065,1095,1120,1180,1260,1320,1425],"revAccess":506636.75,"rev30":285977.25,"z1aAccess":1082.875,"z1a30":1082.875},{"station":"North Station","line":"Fitchburg","hospitals":"MGH/CNY","tamAccess":3390,"tam30":2509,"amTransit":24,"pmTransit":26,"am":[361,420,453,487,534,599,661,721,781,841,901,961,1021,1091,1127,1193,1266,1381,1420],"pm":[340,380,450,510,570,630,690,750,810,870,940,985,1020,1050,1110,1170,1230,1350,1430],"revAccess":668469,"rev30":379630,"z1aAccess":1281,"z1a30":1281},{"station":"North Station","line":"Lowell","hospitals":"MGH/CNY","tamAccess":2761,"tam30":2154,"amTransit":24,"pmTransit":26,"am":[346,391,433,462,497,532,570,607,667,727,787,847,907,967,1012,1072,1132,1170,1210,1246,1294,1354,1414],"pm":[320,385,420,455,500,560,620,680,740,800,860,905,955,990,1020,1062,1100,1140,1185,1245,1305,1365,1425],"revAccess":591868,"rev30":412598,"z1aAccess":454,"z1a30":454},{"station":"North Station","line":"Haverhill","hospitals":"MGH/CNY","tamAccess":4250,"tam30":3022,"amTransit":24,"pmTransit":26,"am":[350,399,447,489,502,532,579,621,668,711,758,801,848,891,938,981,1032,1123,1158,1214,1294,1347],"pm":[355,400,450,490,535,580,625,670,715,760,805,850,895,940,985,1025,1055,1075,1125,1170,1245,1345,1420],"revAccess":951666,"rev30":590412,"z1aAccess":454,"z1a30":454},{"station":"North Station","line":"Newburyport/Rockport","hospitals":"MGH/CNY","tamAccess":3359,"tam30":1824,"amTransit":24,"pmTransit":26,"am":[356,382,422,448,484,512,547,571,599,634,664,692,724,754,814,844,905,935,963,995,1025,1082,1110,1144,1206,1261,1329,1355,1413],"pm":[395,425,458,515,545,575,605,635,695,725,785,815,845,875,905,935,965,995,1022,1055,1085,1120,1155,1205,1250,1300,1340,1390,1435],"revAccess":674241,"rev30":235302,"z1aAccess":1323,"z1a30":1323}];
+const LASTMILE = [{"station":"Boston Landing","hospital":"BMC-B","am":[["Walk",11],["Wait",1],["Bus 66",5],["Walk",1]],"pm":[["Walk",21]],"amTotal":18,"pmTotal":21,"amMed":18,"pmMed":21,"amUsed":18,"pmUsed":21},{"station":"Back Bay","hospital":"TMC","am":[["Wait",2],["Orange Line",2],["Walk",2]],"pm":[["Walk",2],["Wait",4],["Orange Line",2]],"amTotal":6,"pmTotal":8,"amMed":7,"pmMed":7,"amUsed":7,"pmUsed":7},{"station":"South Station","hospital":"MGH","am":[["Wait",5],["Red Line",6],["Walk",5]],"pm":[["Walk",6],["Wait",5],["Red Line",6]],"amTotal":16,"pmTotal":17,"amMed":13,"pmMed":15,"amUsed":13,"pmUsed":15},{"station":"South Station","hospital":"TMC","am":[["Walk",15]],"pm":[["Walk",15]],"amTotal":15,"pmTotal":15,"amMed":13,"pmMed":15,"amUsed":13,"pmUsed":15},{"station":"North Station","hospital":"MGH","am":[["Walk",18]],"pm":[["Walk",18]],"amTotal":18,"pmTotal":18,"amMed":17,"pmMed":17,"amUsed":24,"pmUsed":26},{"station":"North Station","hospital":"CNY","am":[["Walk",7],["Wait",14],["Bus 93",8],["Walk",3]],"pm":[["Walk",21],["Wait",4],["Bus 92",4],["Walk",5]],"amTotal":32,"pmTotal":34,"amMed":31,"pmMed":35,"amUsed":24,"pmUsed":26}];
 const OPP_HIGH = 0.5, OPP_MED = 0.25, WINDOW = 120;
 const $ = id => document.getElementById(id);
 const toMin = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
@@ -91,9 +108,22 @@ const fmt = n => Math.round(n).toLocaleString('en-US');
 const usd = n => '$' + fmt(n);
 const ZONE_1A_PASS = 90;
 const MODE = {JFK: 'LMA shuttle', Lansdowne: 'LMA shuttle', Ruggles: 'LMA/BMC shuttle'};
-const modeOf = s => MODE[s] || 'Google Maps';
+const modeOf = s => MODE[s] || 'walk and transit';
 const clock = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; const h = Math.floor(m / 60); return ((h % 12) || 12) + ':' + String(m % 60).padStart(2, '0') + (h < 12 ? ' AM' : ' PM'); };
 const open = new Set();
+const DEFS = [
+  ['Opportunity Score', 'How large a line\'s unmet need is. People on the line times the share of its trains that do not fit the shift, divided by the largest such number in the model. The biggest gap is 1.00. It is a ranking, not an absolute standard.'],
+  ['Opportunity Tier', 'High is 0.50 and above, Medium is 0.25 to 0.49, Low is under 0.25. It describes the size of the gap, not how good the service is.'],
+  ['TAM', 'Total Addressable Market: hospital employees who live in a zip code with a Commuter Rail stop on a line serving their hospital\'s key station. Total counts all of them. Within 30 minutes keeps those whose train ride to the key station is 30 minutes or less. Modeled from home zip codes, not observed ridership.'],
+  ['Key Station and pair', 'The seven Commuter Rail stations the hospitals are reached from. A pair is one Commuter Rail line at one key station.'],
+  ['Last mile', 'The trip between a key station and the hospital. JFK, Lansdowne and Ruggles use shuttle times. The other stations use routed walk and transit times.'],
+  ['Usable trains', 'A train scores Usable when it falls inside the minimum to maximum range. Too early (AM) or Too long a wait (PM) means it is beyond the maximum. Missed means it is under the minimum or cannot be made. "AM 1 of 3" is one usable train out of three counted.'],
+  ['AM Minimum and Maximum', 'Minutes before ShiftStart that the worker reaches the hospital. The minimum is the buffer needed. The maximum is the earliest still worth taking.'],
+  ['PM Minimum and Maximum', 'Minutes the worker waits on the platform, from the earliest they could be there to the train leaving. The minimum is the shortest wait that feels safe. The maximum is the longest wait accepted.'],
+  ['WrapUp', 'Minutes after ShiftEnd before a worker can leave the unit and start toward the station.'],
+  ['Counting window', 'A train is counted only if it is no more than ' + WINDOW + ' minutes earlier (AM) or later (PM) than the ideal time. Trains outside that are left out. Missed trains still count.'],
+  ['Monthly revenue at stake', 'Monthly pass revenue at the take-up rate shown, times the share of the line\'s trains that are not usable. It is a ceiling, not a forecast.']
+];
 
 function score(v, min, max){ return v <= 0 ? 0 : v < min ? 0 : v <= max ? 2 : 1; }
 
@@ -170,10 +200,23 @@ function run(){
     one('Monthly pass revenue potential', usd(sum(r => r.rev))) +
     duo('Revenue on lines with no usable train', revNone(r => r.amUse === 0), revNone(r => r.pmUse === 0));
 }
+const steps = a => a.map(x => `${x[0]} ${x[1]} min`).join(' &rarr; ');
+function renderLM() {
+  if (typeof LASTMILE === 'undefined' || !LASTMILE.length) { ['lmh', 'lm', 'lmnote'].forEach(k => $(k).style.display = 'none'); return; }
+  $('lm').innerHTML = '<table><thead><tr><th>Key Station</th><th>Hospital</th><th>Morning, station to hospital</th><th>Evening, hospital to station</th><th class="n">Median AM / PM</th><th class="n">Used in model AM / PM</th></tr></thead><tbody>' +
+    LASTMILE.map(r => `<tr><td>${r.station}</td><td>${r.hospital}</td><td>${steps(r.am)}${r.am.length > 1 ? ` = ${r.amTotal} min` : ''}</td><td>${steps(r.pm)}${r.pm.length > 1 ? ` = ${r.pmTotal} min` : ''}</td><td class="n">${r.amMed} / ${r.pmMed}</td><td class="n">${r.amUsed} / ${r.pmUsed}</td></tr>`).join('') + '</tbody></table>';
+}
 document.querySelectorAll('.settings input,.settings select').forEach(el => el.addEventListener('input', run));
 const toggle = tr => { if (!tr || !tr.dataset.k) return; const k = tr.dataset.k; open.has(k) ? open.delete(k) : open.add(k); run(); };
 $('rows').addEventListener('click', e => toggle(e.target.closest('tr.pair')));
 $('rows').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e.target.closest('tr.pair')); } });
+const defsBox = $('defs'), infoBtn = $('info');
+defsBox.innerHTML = DEFS.map(d => `<dt>${d[0]}</dt><dd>${d[1]}</dd>`).join('');
+const setDefs = on => { defsBox.hidden = !on; infoBtn.setAttribute('aria-expanded', on); };
+infoBtn.addEventListener('click', () => setDefs(defsBox.hidden));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') setDefs(false); });
+document.addEventListener('click', e => { if (!e.target.closest('.hd')) setDefs(false); });
+renderLM();
 run();
 </script>
 </body>
