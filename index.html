@@ -11,6 +11,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-ap
 main{max-width:1200px;margin:0 auto;padding:24px 16px 48px}
 h1{font-size:22px;margin:0}
 .sub{color:var(--muted);margin:2px 0 18px}
+.sub p{margin:0}
+.src{border-left:3px solid var(--line);padding-left:12px}
+.rule{border:0;border-top:1px solid var(--line);margin:10px 0}
 .hd{position:relative}
 .ttl{display:flex;align-items:center;gap:8px}
 .info{width:20px;height:20px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--muted);font:italic 600 12px/1 Georgia,"Times New Roman",serif;cursor:pointer}
@@ -66,7 +69,7 @@ tr:last-child td{border-bottom:0}
 <div class="ttl"><h1>CR Schedule Fit Model</h1><button class="info" id="info" type="button" aria-label="Key terms" aria-expanded="false" aria-controls="defs">i</button></div>
 <dl class="defs" id="defs" hidden></dl>
 </div>
-<p class="sub">This model tests transit access for inflexible, on-site hospital staff by assessing how well scheduled Commuter Rail service fits the default 7 AM to 7 PM hospital shift. It counts the inbound and outbound trains a worker could actually take to work and home from each line and key station, then ranks the lines by how many hospital staff live along them and how few of those trains fit. The geospatial analysis for Total Addressable Market (TAM) was done in ArcGIS, the schedule analysis in R, and this interface is built in HTML.<br>Model v9 &middot; CR schedules: MBTA GTFS Fall 2026 version D (valid Nov 6, 2026 to Dec 12, 2026), service date Tue Nov 17, 2026<br>Last mile: r5r (Rapid Realistic Routing on Real-world and Reimagined networks) on MBTA GTFS and OpenStreetMap (Massachusetts extract from Geofabrik, pulled Nov 18, 2026); hospital addresses geocoded with the US Census Geocoder</p>
+<div class="sub"><p class="src">Model v9 &middot; CR schedules: MBTA GTFS Fall 2026 version D (valid Nov 6, 2026 to Dec 12, 2026), service date Tue Nov 17, 2026<br>Last mile: r5r (Rapid Realistic Routing on Real-world and Reimagined networks) on MBTA GTFS and OpenStreetMap (Massachusetts extract from Geofabrik, pulled Nov 18, 2026); hospital addresses geocoded with the US Census Geocoder</p><hr class="rule"><p class="summ">This model tests transit access for inflexible, on-site hospital staff by assessing how well scheduled Commuter Rail service fits the default 7 AM to 7 PM hospital shift. It counts the inbound and outbound trains a worker could actually take to work and home from each line and key station, then ranks the lines by how many hospital staff live along them and how few of those trains fit. The geospatial analysis for Total Addressable Market (TAM) was done in ArcGIS, the schedule analysis in R, and this interface is built in HTML. Click on a Key Station-Line Pair to see a breakdown of how those trains are scored and why.</p></div>
 
 <div class="settings">
   <label>ShiftStart<input id="ShiftStart" type="time" value="07:00"></label>
@@ -78,7 +81,7 @@ tr:last-child td{border-bottom:0}
   <label>WrapUp<input id="WrapUp" type="number" min="0" step="1" value="30"></label>
   <label>Include Zone 1A tier<select id="Include_1A"><option>No</option><option>Yes</option></select></label>
   <label>Pass take-up rate (%)<input id="TakeUp" type="number" min="0" max="100" step="1" value="5"></label>
-  <label>TAM Type<select id="TAM_Type"><option>Total</option><option selected>Within 30 minutes</option></select></label>
+  <label>Total Addressable Market (TAM) Type<select id="TAM_Type"><option>Total</option><option selected>Within 30 minutes</option></select></label>
 </div>
 <div class="err" id="err">Each Minimum must not be larger than its Maximum.</div>
 
@@ -86,7 +89,7 @@ tr:last-child td{border-bottom:0}
 
 <div class="wrap"><table>
 <thead><tr>
-<th class="n">Opportunity Ranking</th><th>Key Station</th><th>CR Line</th><th class="n">Total Addressable Market (TAM)</th>
+<th class="n">Opportunity Ranking</th><th>Key Station</th><th>CR Line</th><th class="n">TAM</th>
 <th>Usable trains</th><th>Pair Status</th><th>Opportunity Score</th><th>Opportunity Tier</th><th class="n">Monthly revenue at stake</th>
 </tr></thead>
 <tbody id="rows"></tbody>
