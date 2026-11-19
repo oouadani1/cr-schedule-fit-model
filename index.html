@@ -66,7 +66,7 @@ tr:last-child td{border-bottom:0}
 <div class="ttl"><h1>CR Schedule Fit Model</h1><button class="info" id="info" type="button" aria-label="Key terms" aria-expanded="false" aria-controls="defs">i</button></div>
 <dl class="defs" id="defs" hidden></dl>
 </div>
-<p class="sub">Model v9 &middot; CR schedules: MBTA GTFS Fall 2026 version D (valid Nov 6, 2026 to Dec 12, 2026), service date Tue Nov 17, 2026<br>Last mile: r5r (Rapid Realistic Routing on Real-world and Reimagined networks) on MBTA GTFS and OpenStreetMap (Massachusetts extract from Geofabrik, pulled Nov 18, 2026); hospital addresses geocoded with the US Census Geocoder</p>
+<p class="sub">This model tests transit access for inflexible, on-site hospital staff by assessing how well scheduled Commuter Rail service fits the default 7 AM to 7 PM hospital shift. It counts the inbound and outbound trains a worker could actually take to work and home from each line and key station, then ranks the lines by how many hospital staff live along them and how few of those trains fit. The geospatial analysis for Total Addressable Market (TAM) was done in ArcGIS, the schedule analysis in R, and this interface is built in HTML.<br>Model v9 &middot; CR schedules: MBTA GTFS Fall 2026 version D (valid Nov 6, 2026 to Dec 12, 2026), service date Tue Nov 17, 2026<br>Last mile: r5r (Rapid Realistic Routing on Real-world and Reimagined networks) on MBTA GTFS and OpenStreetMap (Massachusetts extract from Geofabrik, pulled Nov 18, 2026); hospital addresses geocoded with the US Census Geocoder</p>
 
 <div class="settings">
   <label>ShiftStart<input id="ShiftStart" type="time" value="07:00"></label>
